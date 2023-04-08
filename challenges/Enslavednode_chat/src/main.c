@@ -374,6 +374,51 @@ void cgc_init(void)
   cgc_printf("%s", welcome);
 }
 
+cgc_size_t cgc_receive_until( char *dst, char delim, cgc_size_t max )
+{
+    cgc_size_t len = 0;
+    cgc_size_t rx = 0;
+    char c = 0;
+
+    while( len < max ) {
+        dst[len] = 0x00;
+
+        if ( cgc_receive( STDIN, &c, 1, &rx ) != 0 ) {
+            len = 0;
+            goto end;
+        }
+
+	if (rx == 0) {
+		len = 0;
+		goto end;
+	}
+
+        if ( c == delim ) {
+            goto end;
+        }
+
+        dst[len] = c;
+        len++;
+    }
+end:
+    return len;
+}
+
+cgc_size_t cgc_getline( char *buffer, cgc_size_t len)  {
+    int count;
+
+    count = cgc_receive_until(buffer, '\n', len);
+
+    if (count==len)
+        buffer[len-1]=0;
+    else {
+        buffer[count]=0;
+    }
+
+    return (count);
+
+}
+
 int main(int cgc_argc, char *cgc_argv[])
 {
 #define BUF_SIZE 8126
@@ -381,8 +426,9 @@ int main(int cgc_argc, char *cgc_argv[])
   cgc_size_t rx;
 
   cgc_init();
-
+  int i =0;
   while (1) {
+    
     buf = cgc_calloc(1, BUF_SIZE + 1);
     if (!buf)
       error(EALLOC);
@@ -390,17 +436,24 @@ int main(int cgc_argc, char *cgc_argv[])
     cgc_print_prompt();
 
     cgc_memset(buf, '\0', BUF_SIZE + 1);
-    if ((cgc_readline(1, buf, BUF_SIZE, &rx) < 0) || rx == (cgc_size_t)NULL) {
-      cgc_free(buf);
-      continue;
+    // if ((cgc_receive(STDIN, buf, sizeof(buf), '\n') < 0) || rx == (cgc_size_t)NULL) {
+    //   cgc_free(buf);
+    //   continue;
+    // }
+    cgc_getline(buf, BUF_SIZE);
+    if(cgc_strlen(buf) == 0){
+      i++;
+      if (i == 50)
+      {
+        break;
+      }
     }
-    buf[rx] = '\0';
-
+      
     if (cgc_tick_main_bot((const char *)buf) < 0) {
       cgc_free(buf);
       break;
     }
-
+    // cgc_printf("buf: %s", buf);
     if (!cgc_crosstalk || !cgc_crosstalk->d) {
       cgc_free(buf);
       continue;
